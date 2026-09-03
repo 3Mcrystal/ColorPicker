@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*' # push a tag like v1.0.0 to trigger
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: color_picker-windows.zip
+          - os: macos-latest
+            artifact: color_picker-macos.zip
+          - os: ubuntu-latest
+            artifact: color_picker-linux.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+
+      - name: configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: build
+        run: cmake --build build --config Release -j
+
+      # collect the exe/binary into a clean folder before zipping, path differs per OS
+      - name: package (windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir dist
+          copy build\Release\color_picker.exe dist\
+          Compress-Archive -Path dist\* -DestinationPath ${{ matrix.artifact }}
+
+      - name: package (mac/linux)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir dist
+          cp build/color_picker dist/
+          cd dist && zip -r ../${{ matrix.artifact }} .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
