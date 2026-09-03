@@ -15,6 +15,8 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.91.1)
 FetchContent_MakeAvailable(imgui)
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 add_executable(color_picker
     main.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
